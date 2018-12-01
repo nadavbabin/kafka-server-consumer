@@ -1,16 +1,11 @@
 package com.nadav.kafka.server.consumer;
 
-import org.apache.commons.collections4.map.MultiKeyMap;
+import com.nadav.kafka.server.consumer.Impl.KafkaServerConsumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.protocol.types.Field;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.Properties;
-import java.util.function.Consumer;
 
 public class Main {
 
@@ -30,6 +25,9 @@ public class Main {
     kafkaServerConsumer.registerToKafkaEvent(topic,record ->{
             System.out.println("key: " + record.key());
             System.out.println("value: " + record.value());
+    })
+    .registerToKafkaEvent(topic,record -> {
+        System.out.println("second call " + record.value());
     });
     kafkaServerConsumer.listen();
     }

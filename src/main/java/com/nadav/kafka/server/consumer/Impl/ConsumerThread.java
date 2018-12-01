@@ -1,4 +1,4 @@
-package com.nadav.kafka.server.consumer;
+package com.nadav.kafka.server.consumer.Impl;
 
 import org.apache.commons.collections4.map.MultiKeyMap;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -20,14 +20,18 @@ public class ConsumerThread implements Runnable {
 
     private CountDownLatch latch;
     private KafkaConsumer<String,String> consumer;
-    private MultiKeyMap<String,Consumer<ConsumerRecord<String,String>>> register;
+    private MultiKeyMap<String,List<Consumer<ConsumerRecord<String,String>>>> registerMap;
     private final int numOfThreads = 200;
     private ForkJoinPool forkJoinPool = new ForkJoinPool(numOfThreads);
     private Logger logger = LoggerFactory.getLogger(ConsumerThread.class);
 
-    public ConsumerThread(CountDownLatch latch,Collection topics
-    ,String bootstrapServer,String groupId,String offset){
-        register = new MultiKeyMap<>();
+    public ConsumerThread(CountDownLatch latch,
+                          Collection topics,
+                          String bootstrapServer,
+                          String groupId,
+                          String offset,
+                          MultiKeyMap<String,List<Consumer<ConsumerRecord<String,String>>>> registerMap){
+        this.registerMap = registerMap;
         this.latch = latch;
         Properties properties = new Properties();
         properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,String.class.getName());
@@ -39,15 +43,15 @@ public class ConsumerThread implements Runnable {
         consumer.subscribe(topics);
     }
 
-    public ConsumerThread(CountDownLatch latch, Properties properties, Collection topics){
-        register = new MultiKeyMap<>();
+    public ConsumerThread(CountDownLatch latch,
+                          Properties properties,
+                          Collection topics,
+                          MultiKeyMap<String,List<Consumer<ConsumerRecord<String,String>>>> registerMap){
+
+        this.registerMap = registerMap;
         this.latch = latch;
         consumer = new KafkaConsumer<>(properties);
         consumer.subscribe(topics);
-    }
-
-    public void registerToEvent(String topic , String key , Consumer<ConsumerRecord<String,String>> func){
-        register.put(topic,key,func);
     }
 
     public void run() {
@@ -56,12 +60,15 @@ public class ConsumerThread implements Runnable {
             while (true){
                 consumerRecords = consumer.poll(Duration.ofMillis(100));
                 for (final ConsumerRecord<String,String> record : consumerRecords){
-                    if (register != null){
-                        forkJoinPool.invoke(new RecursiveAction() {
-                            @Override
-                            protected void compute() {
-                                register.get(record.topic(),record.key()).accept(record);
-                            }
+                    if (registerMap.get(record.topic(),record.key()) != null){
+                        registerMap.get(record.topic(),record.key())
+                        .forEach(e->{
+                            forkJoinPool.invoke(new RecursiveAction() {
+                                @Override
+                                protected void compute() {
+                                    e.accept(record);
+                                }
+                            });
                         });
                     }
                 }
