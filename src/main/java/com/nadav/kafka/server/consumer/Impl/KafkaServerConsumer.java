@@ -1,5 +1,6 @@
-package com.nadav.kafka.server.consumer;
+package com.nadav.kafka.server.consumer.Impl;
 
+import com.nadav.kafka.server.consumer.Interfaces.IKafkaServerRegister;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ public class KafkaServerConsumer {
     private Thread runThread;
     private Logger logger = LoggerFactory.getLogger(KafkaServerConsumer.class);
     private static KafkaServerConsumer instance = null;
+    private IKafkaServerRegister kafkaServerRegister;
 
     public static KafkaServerConsumer getInstance(Properties properties, Collection topics){
         if (instance == null){
@@ -40,19 +42,23 @@ public class KafkaServerConsumer {
 
     private KafkaServerConsumer(Properties properties, Collection topics){
         latch = new CountDownLatch(1);
-        consumerThread = new ConsumerThread(latch,properties,topics);
+        kafkaServerRegister = new KafkaServerConsumerListRegister();
+        consumerThread = new ConsumerThread(latch,properties,topics,kafkaServerRegister.getRegisterMap());
+
     }
 
     private KafkaServerConsumer(Collection topics,String bootstrapServer,String groupId,String offset){
         latch = new CountDownLatch(1);
-        consumerThread = new ConsumerThread(latch,topics,bootstrapServer,groupId,offset);
+        kafkaServerRegister = new KafkaServerConsumerListRegister();
+        consumerThread = new ConsumerThread(latch,topics,bootstrapServer,groupId,offset,kafkaServerRegister.getRegisterMap());
     }
 
-    public void registerToKafkaEvent(String topic , String key , Consumer<ConsumerRecord<String,String>> func){
-        consumerThread.registerToEvent(topic,key,func);
+    public IKafkaServerRegister registerToKafkaEvent(String topic , String key , Consumer<ConsumerRecord<String,String>> func){
+        return kafkaServerRegister.registerToKafkaEvent(topic,key,func);
     }
-    public void registerToKafkaEvent(String topic,Consumer<ConsumerRecord<String,String>> func){
-        consumerThread.registerToEvent(topic,null,func);
+
+    public IKafkaServerRegister registerToKafkaEvent(String topic,Consumer<ConsumerRecord<String,String>> func){
+        return kafkaServerRegister.registerToKafkaEvent(topic,null,func);
     }
 
     public void listen(){
